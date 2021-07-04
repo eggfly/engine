@@ -68,6 +68,7 @@ void Rasterizer::Setup(std::unique_ptr<Surface> surface) {
         delegate_.GetTaskRunners().GetPlatformTaskRunner()->GetTaskQueueId();
     const auto gpu_id =
         delegate_.GetTaskRunners().GetRasterTaskRunner()->GetTaskQueueId();
+    FML_LOG(ERROR) << "---- eggfly ---- MakeRefCounted<fml::RasterThreadMerger>()";
     raster_thread_merger_ =
         fml::MakeRefCounted<fml::RasterThreadMerger>(platform_id, gpu_id);
   }
@@ -82,6 +83,7 @@ void Rasterizer::Setup(std::unique_ptr<Surface> surface) {
 }
 
 void Rasterizer::Teardown() {
+  FML_LOG(ERROR) << "---- eggfly ---- Rasterizer::Teardown(), this=" << this;
   auto context_switch =
       surface_ ? surface_->MakeRenderContextCurrent() : nullptr;
   if (context_switch && context_switch->GetResult()) {
@@ -101,7 +103,10 @@ void Rasterizer::Teardown() {
 
 void Rasterizer::EnableThreadMergerIfNeeded() {
   if (raster_thread_merger_) {
+    FML_LOG(ERROR) << "---- eggfly ---- EnableThreadMergerIfNeeded not null!!!";
     raster_thread_merger_->Enable();
+  } else {
+    FML_LOG(ERROR) << "---- eggfly ---- EnableThreadMergerIfNeeded null!!!";
   }
 }
 
@@ -153,10 +158,13 @@ void Rasterizer::Draw(
     LayerTreeDiscardCallback discardCallback) {
   TRACE_EVENT_WITH_FRAME_NUMBER(frame_timings_recorder, "flutter",
                                 "GPURasterizer::Draw");
+// TODO
   if (raster_thread_merger_ &&
       !raster_thread_merger_->IsOnRasterizingThread()) {
+    FML_LOG(WARNING) << "---- eggfly ---- Rasterizer::Draw(), return!!! this="
+                   << this;
     // we yield and let this frame be serviced on the right thread.
-    return;
+    // return; // TODO remove this return comment
   }
   FML_DCHECK(delegate_.GetTaskRunners()
                  .GetRasterTaskRunner()
@@ -450,6 +458,7 @@ RasterStatus Rasterizer::DrawToSurface(
     FrameTimingsRecorder& frame_timings_recorder,
     flutter::LayerTree& layer_tree) {
   TRACE_EVENT0("flutter", "Rasterizer::DrawToSurface");
+
   FML_DCHECK(surface_);
 
   compositor_context_->ui_time().SetLapTime(
@@ -469,6 +478,7 @@ RasterStatus Rasterizer::DrawToSurface(
   // frame after calling `BeginFrame` as this operation resets the GL context.
   auto frame = surface_->AcquireFrame(layer_tree.frame_size());
   if (frame == nullptr) {
+    FML_LOG(ERROR) << "---- eggfly ---- kFailed, this=" << this;
     return RasterStatus::kFailed;
   }
 
@@ -490,24 +500,24 @@ RasterStatus Rasterizer::DrawToSurface(
       frame->supports_readback(),     // surface supports pixel reads
       raster_thread_merger_           // thread merger
   );
-
+  // FML_LOG(ERROR) << "---- eggfly ---- compositor_frame: " << compositor_frame.get();
   if (compositor_frame) {
     RasterStatus raster_status = compositor_frame->Raster(layer_tree, false);
     if (raster_status == RasterStatus::kFailed ||
         raster_status == RasterStatus::kSkipAndRetry) {
       return raster_status;
     }
-    if (shared_engine_block_thread_merging_ && raster_thread_merger_ &&
-        raster_thread_merger_->IsMerged()) {
+//    if (shared_engine_block_thread_merging_ && raster_thread_merger_ &&
+//        raster_thread_merger_->IsMerged()) {
       // TODO(73620): Remove when platform views are accounted for.
-      FML_LOG(ERROR)
-          << "Error: Thread merging not implemented for engines with shared "
-             "components.\n\n"
-             "This is likely a result of using platform views with enigne "
-             "groups.  See "
-             "https://github.com/flutter/flutter/issues/73620.";
-      fml::KillProcess();
-    }
+//      FML_LOG(ERROR)
+//          << "---- eggfly ---- Warning!!! : Thread merging not implemented for engines with shared "
+//             "components. "
+//             "This is likely a result of using platform views with engine "
+//             "groups.  See "
+//             "https://github.com/flutter/flutter/issues/73620.";
+      // fml::KillProcess();
+//    }
     if (external_view_embedder_ &&
         (!raster_thread_merger_ || raster_thread_merger_->IsMerged())) {
       FML_DCHECK(!frame->IsSubmitted());
@@ -515,6 +525,7 @@ RasterStatus Rasterizer::DrawToSurface(
           surface_->GetContext(), std::move(frame),
           delegate_.GetIsGpuDisabledSyncSwitch());
     } else {
+      // FML_LOG(ERROR) << "---- eggfly ---- frame->Submit(), this=" << this;
       frame->Submit();
     }
 

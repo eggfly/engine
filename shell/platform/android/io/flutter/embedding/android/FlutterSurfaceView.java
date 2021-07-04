@@ -124,6 +124,7 @@ public class FlutterSurfaceView extends SurfaceView implements RenderSurface {
     // our Window above everything else to get transparent background rendering.
     if (renderTransparently) {
       getHolder().setFormat(PixelFormat.TRANSPARENT);
+      Log.e("flutter", "---- eggfly ---- java: FlutterSurfaceView.setZOrderOnTop(), this=" + this.hashCode());
       setZOrderOnTop(true);
     }
 

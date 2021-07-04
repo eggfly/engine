@@ -22,6 +22,19 @@ enum class RasterThreadStatus {
   kUnmergedNow
 };
 
+
+struct ThreadMergerKey {
+  TaskQueueId owner;
+  TaskQueueId subsumed;
+  bool operator<(const ThreadMergerKey &other) const {
+    if (owner == other.owner) {
+      return subsumed < other.subsumed;
+    } else {
+      return owner < other.owner;
+    }
+  }
+};
+
 class RasterThreadMerger
     : public fml::RefCountedThreadSafe<RasterThreadMerger> {
  public:
@@ -94,11 +107,9 @@ class RasterThreadMerger
   void SetMergeUnmergeCallback(const fml::closure& callback);
 
  private:
-  static const int kLeaseNotSet;
   fml::TaskQueueId platform_queue_id_;
   fml::TaskQueueId gpu_queue_id_;
   fml::RefPtr<fml::MessageLoopTaskQueues> task_queues_;
-  std::atomic_int lease_term_;
   std::condition_variable merged_condition_;
   std::mutex lease_term_mutex_;
   fml::closure merge_unmerge_callback_;
@@ -115,6 +126,25 @@ class RasterThreadMerger
   FML_FRIEND_REF_COUNTED_THREAD_SAFE(RasterThreadMerger);
   FML_FRIEND_MAKE_REF_COUNTED(RasterThreadMerger);
   FML_DISALLOW_COPY_AND_ASSIGN(RasterThreadMerger);
+};
+
+class RealThreadMerger : public fml::RefCountedThreadSafe<RealThreadMerger> {
+ public:
+  RealThreadMerger(fml::TaskQueueId platform_queue_id, fml::TaskQueueId gpu_queue_id);
+  static fml::RefPtr<RealThreadMerger> GetSharedRealMerger(fml::TaskQueueId owner, fml::TaskQueueId subsume);
+  bool MergeWithLease(RasterThreadMerger *caller, size_t lease_term);
+  bool UnmergeNow(RasterThreadMerger *caller);
+  void ExtendLeaseTo(size_t lease_term);
+  bool IsMergedUnSafe() const; // TODO
+  bool DecrementLease();
+ private:
+  static const int kLeaseNotSet;
+  fml::TaskQueueId platform_queue_id_;
+  fml::TaskQueueId gpu_queue_id_;
+  fml::RefPtr<fml::MessageLoopTaskQueues> task_queues_;
+  std::atomic_int lease_term_;
+  std::set<fml::RasterThreadMerger *> merged_callers_;
+  static std::map<ThreadMergerKey, fml::RefPtr<RealThreadMerger>> real_mergers_;
 };
 
 }  // namespace fml

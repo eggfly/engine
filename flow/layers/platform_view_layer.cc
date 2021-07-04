@@ -9,7 +9,9 @@ namespace flutter {
 PlatformViewLayer::PlatformViewLayer(const SkPoint& offset,
                                      const SkSize& size,
                                      int64_t view_id)
-    : offset_(offset), size_(size), view_id_(view_id) {}
+    : offset_(offset), size_(size), view_id_(view_id) {
+  FML_LOG(ERROR) << "---- eggfly ---- PlatformViewLayer() " << this;
+}
 
 void PlatformViewLayer::Preroll(PrerollContext* context,
                                 const SkMatrix& matrix) {

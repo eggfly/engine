@@ -361,6 +361,7 @@ public class FlutterView extends SurfaceView
     Log.w(
         TAG,
         "FlutterView in the v1 embedding is always a SurfaceView and will cover accessibility highlights when transparent. Consider migrating to the v2 Android embedding. https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects");
+    Log.e("flutter", "---- eggfly ---- java: FlutterView.enableTransparentBackground(), this=" + this.hashCode());
     setZOrderOnTop(true);
     getHolder().setFormat(PixelFormat.TRANSPARENT);
   }
@@ -369,6 +370,7 @@ public class FlutterView extends SurfaceView
    * Reverts this back to the {@link SurfaceView} defaults, at the back of its window and opaque.
    */
   public void disableTransparentBackground() {
+    Log.e("flutter", "---- eggfly ---- java: FlutterView.disableTransparentBackground(), this=" + this.hashCode());
     setZOrderOnTop(false);
     getHolder().setFormat(PixelFormat.OPAQUE);
   }

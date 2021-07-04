@@ -36,7 +36,17 @@ class TaskSource {
  public:
   struct TopTask {
     TaskQueueId task_queue_id;
-    const DelayedTask& task;
+    const DelayedTask &task;
+    /// The operator less function is for std::vector to get min_element
+    bool operator<(const TopTask &other) const {
+      bool less =  other.task > task;
+//      auto t1 = this->task.GetTargetTime().ToEpochDelta().ToNanoseconds();
+//      auto t2 = other.task.GetTargetTime().ToEpochDelta().ToNanoseconds();
+//      FML_LOG(ERROR)
+//      << "---- eggfly ---- operator<() less=" << less << ", this.time=" << t1 << ", other.time=" << t2 << ", t1-t2="
+//      << (t1 - t2);
+      return less;
+    }
   };
 
   /// Construts a TaskSource with the given `task_queue_id`.

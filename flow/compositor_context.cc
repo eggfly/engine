@@ -71,10 +71,15 @@ RasterStatus CompositorContext::ScopedFrame::Raster(
     flutter::LayerTree& layer_tree,
     bool ignore_raster_cache) {
   TRACE_EVENT0("flutter", "CompositorContext::ScopedFrame::Raster");
+//  FML_LOG(ERROR)
+//      << "---- eggfly ---- CompositorContext::ScopedFrame::Raster(), this="
+//      << this;
   bool root_needs_readback = layer_tree.Preroll(*this, ignore_raster_cache);
   bool needs_save_layer = root_needs_readback && !surface_supports_readback();
   PostPrerollResult post_preroll_result = PostPrerollResult::kSuccess;
   if (view_embedder_ && raster_thread_merger_) {
+//    FML_LOG(ERROR) << "---- eggfly ---- PostPrerollAction() called, this="
+//                   << this;
     post_preroll_result =
         view_embedder_->PostPrerollAction(raster_thread_merger_);
   }

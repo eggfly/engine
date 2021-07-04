@@ -6,6 +6,8 @@
 
 #include "flutter/fml/trace_event.h"
 #include "flutter/shell/platform/android/surface/android_surface.h"
+#include <set>
+
 
 namespace flutter {
 
@@ -155,6 +157,9 @@ void AndroidExternalViewEmbedder::SubmitFrame(
     const EmbeddedViewParams& params = view_params_.at(view_id);
     // Display the platform view. If it's already displayed, then it's
     // just positioned and sized.
+//    FML_LOG(ERROR)
+//        << "---- eggfly ---- FlutterViewOnDisplayPlatformView, view_id="
+//        << view_id;
     jni_facade_->FlutterViewOnDisplayPlatformView(
         view_id,             //
         view_rect.x(),       //
@@ -177,6 +182,8 @@ void AndroidExternalViewEmbedder::SubmitFrame(
                               overlay->second        //
         );
     if (should_submit_current_frame) {
+//      FML_LOG(ERROR) << "---- eggfly ---- should_submit_current_frame 2, this="
+//                     << this;
       frame->Submit();
     }
   }
@@ -210,12 +217,16 @@ AndroidExternalViewEmbedder::CreateSurfaceIfNeeded(GrDirectContext* context,
   return frame;
 }
 
+// static std::set<fml::RasterThreadMerger*, size_t> merged_merger_map;
+
 // |ExternalViewEmbedder|
 PostPrerollResult AndroidExternalViewEmbedder::PostPrerollAction(
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
   if (!FrameHasPlatformLayers()) {
     return PostPrerollResult::kSuccess;
   }
+  // FML_LOG(ERROR) << "--- eggfly ---- PostPrerollAction() has platform layers";
+//  raster_thread_merger->InsertMerge(raster_thread_merger.get());
   if (!raster_thread_merger->IsMerged()) {
     // The raster thread merger may be disabled if the rasterizer is being
     // created or teared down.
@@ -225,6 +236,7 @@ PostPrerollResult AndroidExternalViewEmbedder::PostPrerollAction(
     //
     // Eventually, the frame is submitted once this method returns `kSuccess`.
     // At that point, the raster tasks are handled on the platform thread.
+    FML_LOG(ERROR) << "--- eggfly ---- !IsMerged()";
     raster_thread_merger->MergeWithLease(kDefaultMergedLeaseDuration);
     CancelFrame();
     return PostPrerollResult::kSkipAndRetryFrame;

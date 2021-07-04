@@ -747,6 +747,7 @@ public class PlatformViewsController implements PlatformViewsAccessibilityDelega
     final FlutterMutatorView parentView =
         new FlutterMutatorView(
             context, context.getResources().getDisplayMetrics().density, androidTouchProcessor);
+    Log.e("flutter", "---- eggfly ---- java: initializePlatformViewIfNeeded(), this=" + this.hashCode() + ", parentView=" + parentView);
 
     parentView.addOnFocusChangeListener(
         (view, hasFocus) -> {
@@ -834,11 +835,15 @@ public class PlatformViewsController implements PlatformViewsAccessibilityDelega
     overlayView.setVisibility(View.VISIBLE);
     overlayView.bringToFront();
     currentFrameUsedOverlayLayerIds.add(id);
+
+    Log.e("flutter", "---- eggfly ---- java: onDisplayOverlaySurface(), this=" + this.hashCode() + ", views.size=" + overlayLayerViews.size());
   }
 
   public void onBeginFrame() {
     currentFrameUsedOverlayLayerIds.clear();
     currentFrameUsedPlatformViewIds.clear();
+
+    // Log.e("flutter", "---- eggfly ---- java: onBeginFrame(), this=" + this.hashCode() + ", views.size=" + overlayLayerViews.size());
   }
 
   /**
@@ -847,6 +852,8 @@ public class PlatformViewsController implements PlatformViewsAccessibilityDelega
    * <p>This member is not intended for public use, and is only visible for testing.
    */
   public void onEndFrame() {
+    // Log.e("flutter", "---- eggfly ---- java: onEndFrame(), this=" + this.hashCode() + ", views.size=" + overlayLayerViews.size());
+
     final FlutterView view = (FlutterView) flutterView;
     // If there are no platform views in the current frame,
     // then revert the image view surface and use the previous surface.
@@ -930,6 +937,7 @@ public class PlatformViewsController implements PlatformViewsAccessibilityDelega
   public FlutterOverlaySurface createOverlaySurface(@NonNull FlutterImageView imageView) {
     final int id = nextOverlayLayerId++;
     overlayLayerViews.put(id, imageView);
+    Log.e("flutter", "---- eggfly ---- java: createOverlaySurface(), this=" + this.hashCode() + ", imageView=" + imageView + ", views.size=" + overlayLayerViews.size());
     return new FlutterOverlaySurface(id, imageView.getSurface());
   }
 

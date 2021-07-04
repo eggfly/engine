@@ -41,7 +41,7 @@ FML_THREAD_LOCAL ThreadLocalUniquePtr<TaskSourceGradeHolder>
     tls_task_source_grade;
 
 TaskQueueEntry::TaskQueueEntry(TaskQueueId created_for_arg)
-    : owner_of(_kUnmerged),
+    :
       subsumed_by(_kUnmerged),
       created_for(created_for_arg) {
   wakeable = NULL;
@@ -76,9 +76,9 @@ void MessageLoopTaskQueues::Dispose(TaskQueueId queue_id) {
   std::lock_guard guard(queue_mutex_);
   const auto& queue_entry = queue_entries_.at(queue_id);
   FML_DCHECK(queue_entry->subsumed_by == _kUnmerged);
-  TaskQueueId subsumed = queue_entry->owner_of;
+  auto &subsumed_set = queue_entry->owner_of;
   queue_entries_.erase(queue_id);
-  if (subsumed != _kUnmerged) {
+  for (auto &subsumed :subsumed_set) {
     queue_entries_.erase(subsumed);
   }
 }
@@ -87,9 +87,9 @@ void MessageLoopTaskQueues::DisposeTasks(TaskQueueId queue_id) {
   std::lock_guard guard(queue_mutex_);
   const auto& queue_entry = queue_entries_.at(queue_id);
   FML_DCHECK(queue_entry->subsumed_by == _kUnmerged);
-  TaskQueueId subsumed = queue_entry->owner_of;
+  auto &subsumed_set = queue_entry->owner_of;
   queue_entry->task_source->ShutDown();
-  if (subsumed != _kUnmerged) {
+  for (auto &subsumed :subsumed_set) {
     queue_entries_.at(subsumed)->task_source->ShutDown();
   }
 }
@@ -170,9 +170,9 @@ size_t MessageLoopTaskQueues::GetNumPendingTasks(TaskQueueId queue_id) const {
   size_t total_tasks = 0;
   total_tasks += queue_entry->task_source->GetNumPendingTasks();
 
-  TaskQueueId subsumed = queue_entry->owner_of;
-  if (subsumed != _kUnmerged) {
-    const auto& subsumed_entry = queue_entries_.at(subsumed);
+  auto &subsumed_set = queue_entry->owner_of;
+  for (auto &subsumed :subsumed_set) {
+    const auto &subsumed_entry = queue_entries_.at(subsumed);
     total_tasks += subsumed_entry->task_source->GetNumPendingTasks();
   }
   return total_tasks;
@@ -205,8 +205,8 @@ std::vector<fml::closure> MessageLoopTaskQueues::GetObserversToNotify(
     observers.push_back(observer.second);
   }
 
-  TaskQueueId subsumed = queue_entries_.at(queue_id)->owner_of;
-  if (subsumed != _kUnmerged) {
+  auto& subsumed_set = queue_entries_.at(queue_id)->owner_of;
+  for (auto &subsumed :subsumed_set) {
     for (const auto& observer : queue_entries_.at(subsumed)->task_observers) {
       observers.push_back(observer.second);
     }
@@ -224,28 +224,31 @@ void MessageLoopTaskQueues::SetWakeable(TaskQueueId queue_id,
 }
 
 bool MessageLoopTaskQueues::Merge(TaskQueueId owner, TaskQueueId subsumed) {
+  FML_LOG(ERROR) << "---- eggfly ---- real Merge() this=" << this << ", owner=" << owner
+                 << ", subsumed=" << subsumed
+                 << ", owner_of.size=" << queue_entries_.at(owner)->owner_of.size();
   if (owner == subsumed) {
     return true;
   }
   std::lock_guard guard(queue_mutex_);
   auto& owner_entry = queue_entries_.at(owner);
   auto& subsumed_entry = queue_entries_.at(subsumed);
-
-  if (owner_entry->owner_of == subsumed) {
+  auto& subsumed_set = owner_entry->owner_of;
+  if (subsumed_set.find(subsumed) != subsumed_set.end()) {
     return true;
   }
+// TODO
+//  std::vector<TaskQueueId> owner_subsumed_keys = {
+//      owner_entry->owner_of, owner_entry->subsumed_by, subsumed_entry->owner_of,
+//      subsumed_entry->subsumed_by};
+//
+//  for (auto key : owner_subsumed_keys) {
+//    if (key != _kUnmerged) {
+//      return false;
+//    }
+//  }
 
-  std::vector<TaskQueueId> owner_subsumed_keys = {
-      owner_entry->owner_of, owner_entry->subsumed_by, subsumed_entry->owner_of,
-      subsumed_entry->subsumed_by};
-
-  for (auto key : owner_subsumed_keys) {
-    if (key != _kUnmerged) {
-      return false;
-    }
-  }
-
-  owner_entry->owner_of = subsumed;
+  owner_entry->owner_of.insert(subsumed);
   subsumed_entry->subsumed_by = owner;
 
   if (HasPendingTasksUnlocked(owner)) {
@@ -255,16 +258,19 @@ bool MessageLoopTaskQueues::Merge(TaskQueueId owner, TaskQueueId subsumed) {
   return true;
 }
 
-bool MessageLoopTaskQueues::Unmerge(TaskQueueId owner) {
+bool MessageLoopTaskQueues::Unmerge(TaskQueueId owner, TaskQueueId subsumed) {
   std::lock_guard guard(queue_mutex_);
-  const auto& owner_entry = queue_entries_.at(owner);
-  const TaskQueueId subsumed = owner_entry->owner_of;
+  const auto &owner_entry = queue_entries_.at(owner);
+  // const TaskQueueId subsumed = owner_entry->owner_of;
+  FML_LOG(ERROR) << "---- eggfly ---- real Unmerge() this=" << this << ", owner=" << owner
+                 << ", subsumed=" << subsumed
+                 << ", owner_of.size=" << queue_entries_.at(owner)->owner_of.size();
   if (subsumed == _kUnmerged) {
-    return false;
+    return false; // TODO
   }
 
   queue_entries_.at(subsumed)->subsumed_by = _kUnmerged;
-  owner_entry->owner_of = _kUnmerged;
+  owner_entry->owner_of.erase(subsumed);
 
   if (HasPendingTasksUnlocked(owner)) {
     WakeUpUnlocked(owner, GetNextWakeTimeUnlocked(owner));
@@ -280,11 +286,16 @@ bool MessageLoopTaskQueues::Unmerge(TaskQueueId owner) {
 bool MessageLoopTaskQueues::Owns(TaskQueueId owner,
                                  TaskQueueId subsumed) const {
   std::lock_guard guard(queue_mutex_);
-  return owner != _kUnmerged && subsumed != _kUnmerged &&
-         subsumed == queue_entries_.at(owner)->owner_of;
+  auto &subsumed_set = queue_entries_.at(owner)->owner_of;
+  bool owns = owner != _kUnmerged && subsumed != _kUnmerged &&
+      subsumed_set.find(subsumed) != subsumed_set.end();
+//  FML_LOG(ERROR) << "---- eggfly ---- this=" << this << ", owner=" << owner
+//                 << ", subsumed=" << subsumed
+//                 << ", owner_of=" << queue_entries_.at(owner)->owner_of;
+  return owns;
 }
 
-TaskQueueId MessageLoopTaskQueues::GetSubsumedTaskQueueId(
+std::set<TaskQueueId> MessageLoopTaskQueues::GetSubsumedTaskQueueId(
     TaskQueueId owner) const {
   std::lock_guard guard(queue_mutex_);
   return queue_entries_.at(owner)->owner_of;
@@ -318,13 +329,13 @@ bool MessageLoopTaskQueues::HasPendingTasksUnlocked(
     return true;
   }
 
-  const TaskQueueId subsumed = entry->owner_of;
-  if (subsumed == _kUnmerged) {
-    // this is not an owner and queue is empty.
-    return false;
-  } else {
-    return !queue_entries_.at(subsumed)->task_source->IsEmpty();
+  auto &subsumed_set = entry->owner_of;
+  for (auto &subsumed: subsumed_set) {
+    if (!queue_entries_.at(subsumed)->task_source->IsEmpty()) {
+      return true;
+    }
   }
+  return false;
 }
 
 fml::TimePoint MessageLoopTaskQueues::GetNextWakeTimeUnlocked(
@@ -335,33 +346,46 @@ fml::TimePoint MessageLoopTaskQueues::GetNextWakeTimeUnlocked(
 TaskSource::TopTask MessageLoopTaskQueues::PeekNextTaskUnlocked(
     TaskQueueId owner) const {
   FML_DCHECK(HasPendingTasksUnlocked(owner));
-  const auto& entry = queue_entries_.at(owner);
-  const TaskQueueId subsumed = entry->owner_of;
-  if (subsumed == _kUnmerged) {
+  const auto &entry = queue_entries_.at(owner);
+  if (entry->owner_of.empty()) {
+//    FML_LOG(ERROR) << "---- eggfly ---- PeekNextTaskUnlocked() entry->owner_of.empty()";
+//    if (fml::MessageLoop::IsInitializedForCurrentThread()) {
+//      FML_LOG(ERROR) << "---- eggfly ---- current=" << fml::MessageLoop::GetCurrentTaskQueueId();
+//    }
     return entry->task_source->Top();
   }
 
-  TaskSource* owner_tasks = entry->task_source.get();
-  TaskSource* subsumed_tasks = queue_entries_.at(subsumed)->task_source.get();
+  TaskSource *owner_tasks = entry->task_source.get();
+  std::vector<TaskSource::TopTask> candidate_top_tasks;
 
-  // we are owning another task queue
-  const bool subsumed_has_task = !subsumed_tasks->IsEmpty();
-  const bool owner_has_task = !owner_tasks->IsEmpty();
-  fml::TaskQueueId top_queue_id = owner;
-  if (owner_has_task && subsumed_has_task) {
-    const auto owner_task = owner_tasks->Top();
-    const auto subsumed_task = subsumed_tasks->Top();
-    if (owner_task.task > subsumed_task.task) {
-      top_queue_id = subsumed;
-    } else {
-      top_queue_id = owner;
-    }
-  } else if (owner_has_task) {
-    top_queue_id = owner;
-  } else {
-    top_queue_id = subsumed;
+  if (!owner_tasks->IsEmpty()) {
+//    FML_LOG(ERROR)
+//    << "---- eggfly ---- PeekNextTaskUnlocked() owner_tasks.size=" << owner_tasks->GetNumPendingTasks();
+//    if (fml::MessageLoop::IsInitializedForCurrentThread()) {
+//      FML_LOG(ERROR) << "---- eggfly ---- current=" << fml::MessageLoop::GetCurrentTaskQueueId();
+//    }
+    candidate_top_tasks.push_back(owner_tasks->Top());
   }
-  return queue_entries_.at(top_queue_id)->task_source->Top();
+  for (TaskQueueId subsumed: entry->owner_of) {
+    TaskSource *subsumed_tasks = queue_entries_.at(subsumed)->task_source.get();
+    if (!subsumed_tasks->IsEmpty()) {
+//      FML_LOG(ERROR)
+//      << "---- eggfly ---- PeekNextTaskUnlocked() subsumed_tasks.size=" << subsumed_tasks->GetNumPendingTasks();
+//      if (fml::MessageLoop::IsInitializedForCurrentThread()) {
+//        FML_LOG(ERROR) << "---- eggfly ---- current=" << fml::MessageLoop::GetCurrentTaskQueueId();
+//      }
+      candidate_top_tasks.push_back(subsumed_tasks->Top());
+    }
+  }
+  // At least one task at the top because PeekNextTaskUnlocked() is called after HasPendingTasksUnlocked()
+  FML_DCHECK(!candidate_top_tasks.empty());
+//  FML_LOG(ERROR)
+//  << "---- eggfly ---- PeekNextTaskUnlocked() candidate_top_tasks.size=" << candidate_top_tasks.size();
+//  if (fml::MessageLoop::IsInitializedForCurrentThread()) {
+//    FML_LOG(ERROR) << "---- eggfly ---- current=" << fml::MessageLoop::GetCurrentTaskQueueId();
+//  }
+  TaskSource::TopTask &top = *std::min_element(candidate_top_tasks.begin(), candidate_top_tasks.end());
+  return top;
 }
 
 }  // namespace fml

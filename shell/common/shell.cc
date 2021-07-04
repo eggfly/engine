@@ -191,6 +191,7 @@ std::unique_ptr<Shell> Shell::CreateShellOnPlatformThread(
                                            shell = shell.get()    //
   ]() {
         TRACE_EVENT0("flutter", "ShellSetupGPUSubsystem");
+        FML_LOG(ERROR) << "---- eggfly ---- ShellSetupGPUSubsystem, new rasterizer()";
         std::unique_ptr<Rasterizer> rasterizer(on_create_rasterizer(*shell));
         snapshot_delegate_promise.set_value(rasterizer->GetSnapshotDelegate());
         rasterizer_promise.set_value(std::move(rasterizer));
@@ -506,6 +507,8 @@ std::unique_ptr<Shell> Shell::Spawn(
   result->shared_resource_context_ = io_manager_->GetSharedResourceContext();
   result->RunEngine(std::move(run_configuration));
 
+  FML_LOG(ERROR) << "---- eggfly ---- BlockThreadMerging(), this=" << this;
+
   task_runners_.GetRasterTaskRunner()->PostTask(
       [rasterizer = rasterizer_->GetWeakPtr(),
        spawn_rasterizer = result->rasterizer_->GetWeakPtr()]() {
@@ -698,6 +701,9 @@ DartVM* Shell::GetDartVM() {
 
 // |PlatformView::Delegate|
 void Shell::OnPlatformViewCreated(std::unique_ptr<Surface> surface) {
+
+  FML_LOG(ERROR)
+  << "---- eggfly ---- OnPlatformViewCreated()";
   TRACE_EVENT0("flutter", "Shell::OnPlatformViewCreated");
   FML_DCHECK(is_setup_);
   FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
@@ -739,6 +745,7 @@ void Shell::OnPlatformViewCreated(std::unique_ptr<Surface> surface) {
         if (rasterizer) {
           // Enables the thread merger which may be used by the external view
           // embedder.
+          FML_LOG(ERROR) << "---- eggfly ---- rasterizer: Enables thread merger";
           rasterizer->EnableThreadMergerIfNeeded();
           rasterizer->Setup(std::move(surface));
         }
@@ -1133,6 +1140,7 @@ void Shell::OnAnimatorDraw(
     std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder) {
   FML_DCHECK(is_setup_);
 
+  // FML_LOG(ERROR) << "---- eggfly ---- Shell::OnAnimatorDraw(), this=" << this;
   // record the target time for use by rasterizer.
   {
     std::scoped_lock time_recorder_lock(time_recorder_mutex_);
@@ -1160,7 +1168,9 @@ void Shell::OnAnimatorDraw(
        frame_timings_recorder = std::move(frame_timings_recorder)]() mutable {
         if (rasterizer) {
           std::shared_ptr<Pipeline<LayerTree>> pipeline = weak_pipeline.lock();
+          // FML_LOG(ERROR) << "---- eggfly ---- if (rasterizer) this=";
           if (pipeline) {
+            // FML_LOG(ERROR) << "---- eggfly ---- if (pipeline) this=";
             rasterizer->Draw(std::move(frame_timings_recorder),
                              std::move(pipeline), std::move(discard_callback));
           }
