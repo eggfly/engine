@@ -14,11 +14,18 @@ TaskRunnerChecker::TaskRunnerChecker()
 
 TaskRunnerChecker::~TaskRunnerChecker() = default;
 
+/// TODO eggfly
 bool TaskRunnerChecker::RunsOnCreationTaskRunner() const {
   FML_CHECK(fml::MessageLoop::IsInitializedForCurrentThread());
   const auto current_queue_id = MessageLoop::GetCurrentTaskQueueId();
-  return RunsOnTheSameThread(current_queue_id, initialized_queue_id_) ||
-         RunsOnTheSameThread(current_queue_id, subsumed_queue_id_);
+  bool asSameAsInitial = RunsOnTheSameThread(current_queue_id, initialized_queue_id_);
+  bool asSameAsSubsumed =
+      (std::find(subsumed_queue_id_.begin(), subsumed_queue_id_.end(), current_queue_id) != subsumed_queue_id_.end());
+//  FML_LOG(ERROR)
+//  << "---- test ---- curr=" << current_queue_id << ", init=" << initialized_queue_id_ << ", sub.size="
+//  << subsumed_queue_id_.size()
+//  << ", asSameAsInitial=" << asSameAsInitial << ", asSameAsSubsumed=" << asSameAsSubsumed;
+  return asSameAsInitial || asSameAsSubsumed;
 };
 
 bool TaskRunnerChecker::RunsOnTheSameThread(TaskQueueId queue_a,

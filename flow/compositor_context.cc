@@ -52,10 +52,11 @@ CompositorContext::ScopedFrame::ScopedFrame(
     bool instrumentation_enabled,
     bool surface_supports_readback,
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger)
-    : context_(context),
+    :
+    view_embedder_(view_embedder),
+    context_(context),
       gr_context_(gr_context),
       canvas_(canvas),
-      view_embedder_(view_embedder),
       root_surface_transformation_(root_surface_transformation),
       instrumentation_enabled_(instrumentation_enabled),
       surface_supports_readback_(surface_supports_readback),

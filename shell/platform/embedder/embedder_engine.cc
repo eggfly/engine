@@ -85,7 +85,6 @@ bool EmbedderEngine::NotifyCreated() {
   if (!IsValid()) {
     return false;
   }
-
   shell_->GetPlatformView()->NotifyCreated();
   return true;
 }

@@ -174,15 +174,20 @@ static bool ValidateShell(Shell* shell) {
 }
 
 static bool RasterizerHasLayerTree(Shell* shell) {
+  FML_LOG(ERROR) << "---- eggfly ---- RasterizerHasLayerTree 1";
   fml::AutoResetWaitableEvent latch;
   bool has_layer_tree = false;
   fml::TaskRunner::RunNowOrPostTask(
       shell->GetTaskRunners().GetRasterTaskRunner(),
       [shell, &latch, &has_layer_tree]() {
+        FML_LOG(ERROR) << "---- eggfly ---- RasterizerHasLayerTree 2";
         has_layer_tree = shell->GetRasterizer()->GetLastLayerTree() != nullptr;
+        FML_LOG(ERROR) << "---- eggfly ---- RasterizerHasLayerTree 3";
         latch.Signal();
+        FML_LOG(ERROR) << "---- eggfly ---- RasterizerHasLayerTree 4";
       });
   latch.Wait();
+  FML_LOG(ERROR) << "---- eggfly ---- RasterizerHasLayerTree 5";
   return has_layer_tree;
 }
 
@@ -190,13 +195,17 @@ static void ValidateDestroyPlatformView(Shell* shell) {
   ASSERT_TRUE(shell != nullptr);
   ASSERT_TRUE(shell->IsSetup());
 
+  FML_LOG(ERROR) << "---- eggfly ---- ValidateDestroyPlatformView 11.2";
   // To validate destroy platform view, we must ensure the rasterizer has a
   // layer tree before the platform view is destroyed.
   ASSERT_TRUE(RasterizerHasLayerTree(shell));
 
+  FML_LOG(ERROR) << "---- eggfly ---- ValidateDestroyPlatformView 11.3";
   ShellTest::PlatformViewNotifyDestroyed(shell);
+  FML_LOG(ERROR) << "---- eggfly ---- ValidateDestroyPlatformView 11.4";
   // Validate the layer tree is destroyed
   ASSERT_FALSE(RasterizerHasLayerTree(shell));
+  FML_LOG(ERROR) << "---- eggfly ---- ValidateDestroyPlatformView 11.5";
 }
 
 static std::string CreateFlagsString(std::vector<const char*>& flags) {
@@ -896,13 +905,17 @@ TEST_F(ShellTest,
        OnPlatformViewDestroyWhenThreadsAreMerging
 #endif
 ) {
+  FML_LOG(ERROR) << "---- eggfly ---- input a char to continue...";
+  getchar();
   const size_t kThreadMergingLease = 10;
   auto settings = CreateSettingsForFixture();
   fml::AutoResetWaitableEvent end_frame_latch;
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 0";
   auto end_frame_callback =
       [&](bool should_resubmit_frame,
           fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
         if (should_resubmit_frame && !raster_thread_merger->IsMerged()) {
+          FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 1";
           raster_thread_merger->MergeWithLease(kThreadMergingLease);
         }
         end_frame_latch.Signal();
@@ -917,13 +930,16 @@ TEST_F(ShellTest,
                            false, external_view_embedder);
 
   // Create the surface needed by rasterizer
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 2";
   PlatformViewNotifyCreated(shell.get());
-
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 3";
   auto configuration = RunConfiguration::InferFromSettings(settings);
   configuration.SetEntrypoint("emptyMain");
 
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 4";
   RunEngine(shell.get(), std::move(configuration));
 
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 5";
   LayerTreeBuilder builder = [&](std::shared_ptr<ContainerLayer> root) {
     SkPictureRecorder recorder;
     SkCanvas* recording_canvas =
@@ -931,17 +947,23 @@ TEST_F(ShellTest,
     recording_canvas->drawRect(SkRect::MakeXYWH(0, 0, 80, 80),
                                SkPaint(SkColor4f::FromColor(SK_ColorRED)));
     auto sk_picture = recorder.finishRecordingAsPicture();
+    FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 6";
     fml::RefPtr<SkiaUnrefQueue> queue = fml::MakeRefCounted<SkiaUnrefQueue>(
         this->GetCurrentTaskRunner(), fml::TimeDelta::Zero());
     auto picture_layer = std::make_shared<PictureLayer>(
         SkPoint::Make(10, 10),
         flutter::SkiaGPUObject<SkPicture>({sk_picture, queue}), false, false);
+
+    FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 7";
     root->Add(picture_layer);
+    FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 8";
   };
 
   PumpOneFrame(shell.get(), 100, 100, builder);
   // Pump one frame and threads aren't merged
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 9";
   end_frame_latch.Wait();
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 10";
   ASSERT_FALSE(fml::TaskRunnerChecker::RunsOnTheSameThread(
       shell->GetTaskRunners().GetRasterTaskRunner()->GetTaskQueueId(),
       shell->GetTaskRunners().GetPlatformTaskRunner()->GetTaskQueueId()));
@@ -952,21 +974,27 @@ TEST_F(ShellTest,
       PostPrerollResult::kResubmitFrame);
   PumpOneFrame(shell.get(), 100, 100, builder);
 
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 11";
   // Now destroy the platform view immediately.
   // Two things can happen here:
   // 1. Threads haven't merged. 2. Threads has already merged.
   // |Shell:OnPlatformViewDestroy| should be able to handle both cases.
   ValidateDestroyPlatformView(shell.get());
 
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 11.1";
+
   // Ensure threads are unmerged after platform view destroy
   ASSERT_FALSE(fml::TaskRunnerChecker::RunsOnTheSameThread(
       shell->GetTaskRunners().GetRasterTaskRunner()->GetTaskQueueId(),
       shell->GetTaskRunners().GetPlatformTaskRunner()->GetTaskQueueId()));
 
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging 12";
   // Validate the platform view can be recreated and destroyed again
   ValidateShell(shell.get());
 
+
   DestroyShell(std::move(shell));
+  FML_LOG(ERROR) << "---- eggfly ---- OnPlatformViewDestroyWhenThreadsAreMerging end";
 }
 
 // TODO(https://github.com/flutter/flutter/issues/59816): Enable on fuchsia.

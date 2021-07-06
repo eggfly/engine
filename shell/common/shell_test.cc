@@ -51,14 +51,26 @@ void ShellTest::PlatformViewNotifyCreated(Shell* shell) {
   latch.Wait();
 }
 
-void ShellTest::PlatformViewNotifyDestroyed(Shell* shell) {
+void ShellTest::PlatformViewNotifyDestroyed(Shell *shell) {
   fml::AutoResetWaitableEvent latch;
+  FML_LOG(ERROR)
+  << "---- eggfly ---- PlatformViewNotifyDestroyed 1: current=" << fml::MessageLoop::GetCurrentTaskQueueId();
   fml::TaskRunner::RunNowOrPostTask(
       shell->GetTaskRunners().GetPlatformTaskRunner(), [shell, &latch]() {
+        FML_LOG(ERROR)
+        << "---- eggfly ---- PlatformViewNotifyDestroyed 2: current=" << fml::MessageLoop::GetCurrentTaskQueueId();
         shell->GetPlatformView()->NotifyDestroyed();
+        FML_LOG(ERROR)
+        << "---- eggfly ---- PlatformViewNotifyDestroyed 3: current=" << fml::MessageLoop::GetCurrentTaskQueueId();
         latch.Signal();
+        FML_LOG(ERROR)
+        << "---- eggfly ---- PlatformViewNotifyDestroyed 4: current=" << fml::MessageLoop::GetCurrentTaskQueueId();
       });
+  FML_LOG(ERROR)
+  << "---- eggfly ---- PlatformViewNotifyDestroyed 5: current=" << fml::MessageLoop::GetCurrentTaskQueueId();
   latch.Wait();
+  FML_LOG(ERROR)
+  << "---- eggfly ---- PlatformViewNotifyDestroyed 6: current=" << fml::MessageLoop::GetCurrentTaskQueueId();
 }
 
 void ShellTest::RunEngine(Shell* shell, RunConfiguration configuration) {

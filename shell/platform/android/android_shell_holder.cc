@@ -182,6 +182,7 @@ std::unique_ptr<AndroidShellHolder> AndroidShellHolder::Spawn(
       << "A new Shell can only be spawned "
          "if the current Shell is properly constructed";
 
+
   // Pull out the new PlatformViewAndroid from the new Shell to feed to it to
   // the new AndroidShellHolder.
   //

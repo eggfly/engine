@@ -505,18 +505,6 @@ std::unique_ptr<Shell> Shell::Spawn(
           .SetIfTrue([&] { result = shell_maker(true); }));
   result->shared_resource_context_ = io_manager_->GetSharedResourceContext();
   result->RunEngine(std::move(run_configuration));
-
-  task_runners_.GetRasterTaskRunner()->PostTask(
-      [rasterizer = rasterizer_->GetWeakPtr(),
-       spawn_rasterizer = result->rasterizer_->GetWeakPtr()]() {
-        if (rasterizer) {
-          rasterizer->BlockThreadMerging();
-        }
-        if (spawn_rasterizer) {
-          spawn_rasterizer->BlockThreadMerging();
-        }
-      });
-
   return result;
 }
 
@@ -807,6 +795,7 @@ void Shell::OnPlatformViewCreated(std::unique_ptr<Surface> surface) {
 
 // |PlatformView::Delegate|
 void Shell::OnPlatformViewDestroyed() {
+  FML_LOG(ERROR) << "---- eggfly ----" << "OnPlatformViewDestroyed(): begin";
   TRACE_EVENT0("flutter", "Shell::OnPlatformViewDestroyed");
   FML_DCHECK(is_setup_);
   FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
@@ -835,6 +824,8 @@ void Shell::OnPlatformViewDestroyed() {
   const bool should_post_raster_task =
       !task_runners_.GetRasterTaskRunner()->RunsTasksOnCurrentThread();
 
+  FML_LOG(ERROR)
+  << "---- eggfly ----" << "OnPlatformViewDestroyed(): should_post_raster_task=" << should_post_raster_task;
   // Note:
   // This is a synchronous operation because certain platforms depend on
   // setup/suspension of all activities that may be interacting with the GPU in
@@ -861,7 +852,11 @@ void Shell::OnPlatformViewDestroyed() {
       // rasterizer. If the raster and platform threads are merged, tearing down
       // the rasterizer unmerges the threads.
       rasterizer->EnableThreadMergerIfNeeded();
+      FML_LOG(ERROR)
+      << "---- eggfly ----" << "OnPlatformViewDestroyed(): before rasterizer->Teardown();";
       rasterizer->Teardown();
+      FML_LOG(ERROR)
+      << "---- eggfly ----" << "OnPlatformViewDestroyed(): after rasterizer->Teardown();";
     }
     // Step 2: Next, tell the IO thread to complete its remaining work.
     fml::TaskRunner::RunNowOrPostTask(io_task_runner, io_task);
@@ -874,8 +869,10 @@ void Shell::OnPlatformViewDestroyed() {
       engine->OnOutputSurfaceDestroyed();
     }
     if (should_post_raster_task) {
+      FML_LOG(ERROR) << "---- eggfly ----" << "OnPlatformViewDestroyed(): should_post_raster_task";
       fml::TaskRunner::RunNowOrPostTask(raster_task_runner, raster_task);
     } else {
+      FML_LOG(ERROR) << "---- eggfly ----" << "OnPlatformViewDestroyed(): !should_post_raster_task";
       // See comment on should_post_raster_task, in this case we just unblock
       // the platform thread.
       latch.Signal();
@@ -887,13 +884,17 @@ void Shell::OnPlatformViewDestroyed() {
   fml::TaskRunner::RunNowOrPostTask(task_runners_.GetUITaskRunner(), ui_task);
 
   latch.Wait();
+  FML_LOG(ERROR) << "---- eggfly ----" << "OnPlatformViewDestroyed(): after latch.Wait();";
   if (!should_post_raster_task) {
     // See comment on should_post_raster_task, in this case the raster_task
     // wasn't executed, and we just run it here as the platform thread
     // is the raster thread.
     raster_task();
+    FML_LOG(ERROR) << "---- eggfly ----" << "OnPlatformViewDestroyed(): raster_task()";
     latch.Wait();
+    FML_LOG(ERROR) << "---- eggfly ----" << "OnPlatformViewDestroyed(): after latch.Wait();";
   }
+  FML_LOG(ERROR) << "---- eggfly ----" << "OnPlatformViewDestroyed(): end";
 }
 
 // |PlatformView::Delegate|

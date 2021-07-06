@@ -69,7 +69,7 @@ auto WeakPtr(std::shared_ptr<T> pointer) {
 }
 
 TestTimeoutListener::TestTimeoutListener(fml::TimeDelta timeout)
-    : timeout_(timeout),
+    : timeout_(fml::TimeDelta::FromSeconds(5)),
       listener_thread_("test_timeout_listener"),
       listener_thread_runner_(listener_thread_.GetTaskRunner()),
       pending_tests_(PendingTests::Create(listener_thread_runner_, timeout_)) {

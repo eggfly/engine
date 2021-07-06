@@ -82,11 +82,11 @@ class CompositorContext {
     virtual RasterStatus Raster(LayerTree& layer_tree,
                                 bool ignore_raster_cache);
 
-   private:
+    ExternalViewEmbedder* view_embedder_;
     CompositorContext& context_;
+   private:
     GrDirectContext* gr_context_;
     SkCanvas* canvas_;
-    ExternalViewEmbedder* view_embedder_;
     const SkMatrix& root_surface_transformation_;
     const bool instrumentation_enabled_;
     const bool surface_supports_readback_;
