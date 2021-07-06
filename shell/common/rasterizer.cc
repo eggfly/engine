@@ -22,6 +22,7 @@
 #include "third_party/skia/include/core/SkSurfaceCharacterization.h"
 #include "third_party/skia/include/utils/SkBase64.h"
 
+
 // When screenshotting we want to ensure we call the base method for
 // CompositorContext::AcquireFrame instead of the platform-specific method.
 // Specifically, Fuchsia's CompositorContext handles the rendering surface
@@ -93,8 +94,7 @@ void Rasterizer::Setup(std::unique_ptr<Surface> surface) {
         delegate_.GetTaskRunners().GetPlatformTaskRunner()->GetTaskQueueId();
     const auto gpu_id =
         delegate_.GetTaskRunners().GetRasterTaskRunner()->GetTaskQueueId();
-    raster_thread_merger_ =
-        fml::MakeRefCounted<fml::RasterThreadMerger>(platform_id, gpu_id);
+    raster_thread_merger_ = fml::MessageLoopTaskQueues::GetCachedRasterThreadMerger(platform_id, gpu_id);
   }
   if (raster_thread_merger_) {
     raster_thread_merger_->SetMergeUnmergeCallback([=]() {
@@ -119,7 +119,7 @@ void Rasterizer::Teardown() {
   if (raster_thread_merger_.get() != nullptr &&
       raster_thread_merger_.get()->IsMerged()) {
     FML_DCHECK(raster_thread_merger_->IsEnabled());
-    raster_thread_merger_->UnMergeNow();
+    raster_thread_merger_->UnMergeByCaller(external_view_embedder_.get());
     raster_thread_merger_->SetMergeUnmergeCallback(nullptr);
   }
 }
@@ -455,7 +455,7 @@ RasterStatus Rasterizer::DoDraw(
   // This enqueue ensures that we attempt to consume from the right
   // thread one more time after un-merge.
   if (raster_thread_merger_) {
-    if (raster_thread_merger_->DecrementLease() ==
+    if (raster_thread_merger_->DecrementLease(external_view_embedder_.get()) ==
         fml::RasterThreadStatus::kUnmergedNow) {
       return RasterStatus::kEnqueuePipeline;
     }
@@ -468,6 +468,7 @@ RasterStatus Rasterizer::DrawToSurface(
     const fml::TimeDelta frame_build_duration,
     flutter::LayerTree& layer_tree) {
   TRACE_EVENT0("flutter", "Rasterizer::DrawToSurface");
+
   FML_DCHECK(surface_);
 
   compositor_context_->ui_time().SetLapTime(frame_build_duration);
@@ -507,23 +508,11 @@ RasterStatus Rasterizer::DrawToSurface(
       frame->supports_readback(),     // surface supports pixel reads
       raster_thread_merger_           // thread merger
   );
-
   if (compositor_frame) {
     RasterStatus raster_status = compositor_frame->Raster(layer_tree, false);
     if (raster_status == RasterStatus::kFailed ||
         raster_status == RasterStatus::kSkipAndRetry) {
       return raster_status;
-    }
-    if (shared_engine_block_thread_merging_ && raster_thread_merger_ &&
-        raster_thread_merger_->IsMerged()) {
-      // TODO(73620): Remove when platform views are accounted for.
-      FML_LOG(ERROR)
-          << "Error: Thread merging not implemented for engines with shared "
-             "components.\n\n"
-             "This is likely a result of using platform views with enigne "
-             "groups.  See "
-             "https://github.com/flutter/flutter/issues/73620.";
-      fml::KillProcess();
     }
     if (external_view_embedder_ &&
         (!raster_thread_merger_ || raster_thread_merger_->IsMerged())) {

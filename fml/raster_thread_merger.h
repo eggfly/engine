@@ -22,6 +22,18 @@ enum class RasterThreadStatus {
   kUnmergedNow
 };
 
+struct ThreadMergerKey {
+  TaskQueueId owner;
+  TaskQueueId subsumed;
+  bool operator<(const ThreadMergerKey &other) const {
+    if (owner == other.owner) {
+      return subsumed < other.subsumed;
+    } else {
+      return owner < other.owner;
+    }
+  }
+};
+
 class RasterThreadMerger
     : public fml::RefCountedThreadSafe<RasterThreadMerger> {
  public:
@@ -36,6 +48,9 @@ class RasterThreadMerger
   // When task queues are statically merged this method becomes no-op.
   void MergeWithLease(size_t lease_term);
 
+  static size_t AddMergeCaller(void* caller);
+  static size_t RemoveMergeCaller(void* caller);
+
   // Un-merges the threads now, and resets the lease term to 0.
   //
   // Must be executed on the raster task runner.
@@ -43,7 +58,7 @@ class RasterThreadMerger
   // If the task queues are the same, we consider them statically merged.
   // When task queues are statically merged, we never unmerge them and
   // this method becomes no-op.
-  void UnMergeNow();
+  void UnMergeByCaller(void* caller_embedder);
 
   // If the task queues are the same, we consider them statically merged.
   // When task queues are statically merged this method becomes no-op.
@@ -54,7 +69,7 @@ class RasterThreadMerger
   //
   // If the task queues are the same, we consider them statically merged.
   // When task queues are statically merged this method becomes no-op.
-  RasterThreadStatus DecrementLease();
+  RasterThreadStatus DecrementLease(void* caller_embedder);
 
   bool IsMerged();
 
@@ -78,11 +93,11 @@ class RasterThreadMerger
   void Enable();
 
   // Disables the thread merger. Once disabled, any call to
-  // |MergeWithLease| or |UnMergeNow| results in a noop.
+  // |MergeWithLease| or |UnMergeByCaller| results in a noop.
   void Disable();
 
   // Whether the thread merger is enabled. By default, the thread merger is
-  // enabled. If false, calls to |MergeWithLease| or |UnMergeNow| results in a
+  // enabled. If false, calls to |MergeWithLease| or |UnMergeByCaller| results in a
   // noop.
   bool IsEnabled();
 

@@ -37,6 +37,10 @@ class TaskSource {
   struct TopTask {
     TaskQueueId task_queue_id;
     const DelayedTask& task;
+    /// The less function is for std::vector get max_element
+    bool operator<(const TopTask &other) const {
+      return other.task > task;
+    }
   };
 
   /// Construts a TaskSource with the given `task_queue_id`.

@@ -76,7 +76,7 @@ RasterStatus CompositorContext::ScopedFrame::Raster(
   PostPrerollResult post_preroll_result = PostPrerollResult::kSuccess;
   if (view_embedder_ && raster_thread_merger_) {
     post_preroll_result =
-        view_embedder_->PostPrerollAction(raster_thread_merger_);
+        view_embedder_->PostPrerollAction(raster_thread_merger_, view_embedder_);
   }
 
   if (post_preroll_result == PostPrerollResult::kResubmitFrame) {

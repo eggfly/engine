@@ -7,6 +7,8 @@
 #include "flutter/fml/raster_thread_merger.h"
 
 #include "flutter/fml/message_loop_impl.h"
+#include <set>
+
 
 namespace fml {
 
@@ -18,9 +20,7 @@ RasterThreadMerger::RasterThreadMerger(fml::TaskQueueId platform_queue_id,
       gpu_queue_id_(gpu_queue_id),
       task_queues_(fml::MessageLoopTaskQueues::GetInstance()),
       lease_term_(kLeaseNotSet),
-      enabled_(true) {
-  FML_CHECK(!task_queues_->Owns(platform_queue_id_, gpu_queue_id_));
-}
+      enabled_(true) {}
 
 void RasterThreadMerger::SetMergeUnmergeCallback(const fml::closure& callback) {
   merge_unmerge_callback_ = callback;
@@ -43,6 +43,7 @@ void RasterThreadMerger::MergeWithLease(size_t lease_term) {
 
   bool success = task_queues_->Merge(platform_queue_id_, gpu_queue_id_);
   if (success && merge_unmerge_callback_ != nullptr) {
+    FML_LOG(ERROR) << "--- test ---- merge_unmerge_callback_()";
     merge_unmerge_callback_();
   }
   FML_CHECK(success) << "Unable to merge the raster and platform threads.";
@@ -51,8 +52,12 @@ void RasterThreadMerger::MergeWithLease(size_t lease_term) {
   merged_condition_.notify_one();
 }
 
-void RasterThreadMerger::UnMergeNow() {
+void RasterThreadMerger::UnMergeByCaller(void* caller_embedder) {
   std::scoped_lock lock(lease_term_mutex_);
+  size_t left_count = RemoveMergeCaller(caller_embedder);
+  if (left_count > 0) {
+    return; // TODO check sequence
+  }
   if (TaskQueuesAreSame()) {
     return;
   }
@@ -60,7 +65,7 @@ void RasterThreadMerger::UnMergeNow() {
     return;
   }
   lease_term_ = 0;
-  bool success = task_queues_->Unmerge(platform_queue_id_);
+  bool success = task_queues_->Unmerge(platform_queue_id_, gpu_queue_id_);
   if (success && merge_unmerge_callback_ != nullptr) {
     merge_unmerge_callback_();
   }
@@ -132,7 +137,7 @@ void RasterThreadMerger::WaitUntilMerged() {
   merged_condition_.wait(lock, [&] { return IsMergedUnSafe(); });
 }
 
-RasterThreadStatus RasterThreadMerger::DecrementLease() {
+RasterThreadStatus RasterThreadMerger::DecrementLease(void* caller_embedder) {
   if (TaskQueuesAreSame()) {
     return RasterThreadStatus::kRemainsMerged;
   }
@@ -147,13 +152,31 @@ RasterThreadStatus RasterThreadMerger::DecrementLease() {
       << "lease_term should always be positive when merged.";
   lease_term_--;
   if (lease_term_ == 0) {
-    // |UnMergeNow| is going to acquire the lock again.
+    // |UnMergeByCaller| is going to acquire the lock again.
     lock.unlock();
-    UnMergeNow();
+    UnMergeByCaller(caller_embedder);
     return RasterThreadStatus::kUnmergedNow;
   }
 
   return RasterThreadStatus::kRemainsMerged;
 }
+
+std::set<void *> merged_records;
+std::mutex merged_records_mutex_;
+
+size_t RasterThreadMerger::AddMergeCaller(void* caller) {
+  std::scoped_lock scoped_lock(merged_records_mutex_);
+  merged_records.insert(caller);
+  size_t left_count = merged_records.size();
+  return left_count;
+}
+
+size_t RasterThreadMerger::RemoveMergeCaller(void* caller) {
+  std::scoped_lock scoped_lock(merged_records_mutex_);
+  merged_records.erase(caller);
+  size_t left_count = merged_records.size();
+  return left_count;
+}
+
 
 }  // namespace fml

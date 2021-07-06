@@ -52,8 +52,8 @@ class AndroidExternalViewEmbedder final : public ExternalViewEmbedder {
                        gpu_disable_sync_switch) override;
 
   // |ExternalViewEmbedder|
-  PostPrerollResult PostPrerollAction(
-      fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) override;
+  PostPrerollResult PostPrerollAction(fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger,
+                                      void *caller_embedder) override;
 
   // |ExternalViewEmbedder|
   SkCanvas* GetRootCanvas() override;
