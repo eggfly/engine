@@ -17,6 +17,8 @@
 namespace fml {
 namespace {
 
+void *kMockCallerPointer = (void *) 0x80;
+
 TEST(WeakPtrTest, Basic) {
   int data = 0;
   WeakPtrFactory<int> factory(&data);
@@ -221,7 +223,7 @@ TEST(TaskRunnerAffineWeakPtrTest, ShouldNotCrashIfRunningOnTheSameTaskRunner) {
 
   for (int i = 0; i < kNumFramesMerged; i++) {
     ASSERT_TRUE(raster_thread_merger_->IsMerged());
-    raster_thread_merger_->DecrementLease();
+    raster_thread_merger_->DecrementLease(kMockCallerPointer);
   }
 
   ASSERT_FALSE(raster_thread_merger_->IsMerged());

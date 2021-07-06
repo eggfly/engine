@@ -6,6 +6,8 @@
 
 #include "flutter/fml/trace_event.h"
 #include "flutter/shell/platform/android/surface/android_surface.h"
+#include <set>
+
 
 namespace flutter {
 
@@ -211,11 +213,12 @@ AndroidExternalViewEmbedder::CreateSurfaceIfNeeded(GrDirectContext* context,
 }
 
 // |ExternalViewEmbedder|
-PostPrerollResult AndroidExternalViewEmbedder::PostPrerollAction(
-    fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
+PostPrerollResult AndroidExternalViewEmbedder::PostPrerollAction(fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger,
+                                                                 void *caller_embedder) {
   if (!FrameHasPlatformLayers()) {
     return PostPrerollResult::kSuccess;
   }
+  raster_thread_merger->AddMergeCaller(caller_embedder);
   if (!raster_thread_merger->IsMerged()) {
     // The raster thread merger may be disabled if the rasterizer is being
     // created or teared down.
@@ -225,6 +228,7 @@ PostPrerollResult AndroidExternalViewEmbedder::PostPrerollAction(
     //
     // Eventually, the frame is submitted once this method returns `kSuccess`.
     // At that point, the raster tasks are handled on the platform thread.
+    FML_LOG(ERROR) << "--- eggfly ---- !IsMerged()";
     raster_thread_merger->MergeWithLease(kDefaultMergedLeaseDuration);
     CancelFrame();
     return PostPrerollResult::kSkipAndRetryFrame;

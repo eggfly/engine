@@ -298,8 +298,8 @@ class ExternalViewEmbedder {
   // Returns kResubmitFrame if the frame needs to be processed again, this is
   // after it does any requisite tasks needed to bring itself to a valid state.
   // Returns kSuccess if the view embedder is already in a valid state.
-  virtual PostPrerollResult PostPrerollAction(
-      fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
+  virtual PostPrerollResult PostPrerollAction(fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger,
+                                              void *caller_embedder) {
     return PostPrerollResult::kSuccess;
   }
 

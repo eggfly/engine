@@ -92,6 +92,7 @@ PlatformViewAndroid::PlatformViewAndroid(
       jni_facade_(jni_facade),
       android_context_(std::move(android_context)),
       platform_view_android_delegate_(jni_facade) {
+
   // TODO(dnfield): always create a pbuffer surface for background use to
   // resolve https://github.com/flutter/flutter/issues/73675
   if (android_context_) {
@@ -101,6 +102,11 @@ PlatformViewAndroid::PlatformViewAndroid(
         android_context_, jni_facade_);
     android_surface_ = surface_factory_->CreateSurface();
 
+    FML_LOG(ERROR)
+        << "---- eggfly ---- PlatformViewAndroid::PlatformViewAndroid(), this="
+        << this << ", surface_factory_=" << surface_factory_.get()
+        << ", android_surface_=" << android_surface_
+        << ", android_context_=" << android_context_;
     FML_CHECK(android_surface_ && android_surface_->IsValid())
         << "Could not create an OpenGL, Vulkan or Software surface to set up "
            "rendering.";
@@ -111,6 +117,8 @@ PlatformViewAndroid::~PlatformViewAndroid() = default;
 
 void PlatformViewAndroid::NotifyCreated(
     fml::RefPtr<AndroidNativeWindow> native_window) {
+  FML_LOG(ERROR)
+      << "---- eggfly ---- PlatformViewAndroid::NotifyCreated(), this=" << this;
   if (android_surface_) {
     InstallFirstFrameCallback();
 
@@ -302,6 +310,7 @@ std::unique_ptr<VsyncWaiter> PlatformViewAndroid::CreateVSyncWaiter() {
 
 // |PlatformView|
 std::unique_ptr<Surface> PlatformViewAndroid::CreateRenderingSurface() {
+  FML_LOG(ERROR) << "---- eggfly ---- PlatformViewAndroid::CreateRenderingSurface() this=" << this;
   if (!android_surface_) {
     return nullptr;
   }

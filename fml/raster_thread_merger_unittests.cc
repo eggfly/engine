@@ -20,6 +20,8 @@
 namespace fml {
 namespace testing {
 
+void *kMockCallerPointer = (void *) 0x80;
+
 TEST(RasterThreadMerger, RemainMergedTillLeaseExpires) {
   fml::MessageLoop* loop1 = nullptr;
   fml::AutoResetWaitableEvent latch1;
@@ -56,7 +58,7 @@ TEST(RasterThreadMerger, RemainMergedTillLeaseExpires) {
 
   for (int i = 0; i < kNumFramesMerged; i++) {
     ASSERT_TRUE(raster_thread_merger_->IsMerged());
-    raster_thread_merger_->DecrementLease();
+    raster_thread_merger_->DecrementLease(kMockCallerPointer);
   }
 
   ASSERT_FALSE(raster_thread_merger_->IsMerged());
@@ -132,7 +134,7 @@ TEST(RasterThreadMerger, IsNotOnRasterizingThread) {
 
   post_merge.Wait();
 
-  raster_thread_merger_->DecrementLease();
+  raster_thread_merger_->DecrementLease(kMockCallerPointer);
 
   loop1->GetTaskRunner()->PostTask([&]() {
     ASSERT_FALSE(raster_thread_merger_->IsOnRasterizingThread());
@@ -195,7 +197,7 @@ TEST(RasterThreadMerger, LeaseExtension) {
   // let there be one more turn till the leases expire.
   for (int i = 0; i < kNumFramesMerged - 1; i++) {
     ASSERT_TRUE(raster_thread_merger_->IsMerged());
-    raster_thread_merger_->DecrementLease();
+    raster_thread_merger_->DecrementLease(kMockCallerPointer);
   }
 
   // extend the lease once.
@@ -204,7 +206,7 @@ TEST(RasterThreadMerger, LeaseExtension) {
   // we will NOT last for 1 extra turn, we just set it.
   for (int i = 0; i < kNumFramesMerged; i++) {
     ASSERT_TRUE(raster_thread_merger_->IsMerged());
-    raster_thread_merger_->DecrementLease();
+    raster_thread_merger_->DecrementLease(kMockCallerPointer);
   }
 
   ASSERT_FALSE(raster_thread_merger_->IsMerged());
@@ -257,7 +259,7 @@ TEST(RasterThreadMerger, WaitUntilMerged) {
 
   for (int i = 0; i < kNumFramesMerged; i++) {
     ASSERT_TRUE(raster_thread_merger->IsMerged());
-    raster_thread_merger->DecrementLease();
+    raster_thread_merger->DecrementLease(kMockCallerPointer);
   }
 
   ASSERT_FALSE(raster_thread_merger->IsMerged());
@@ -295,7 +297,7 @@ TEST(RasterThreadMerger, HandleTaskQueuesAreTheSame) {
 
   for (int i = 0; i < kNumFramesMerged; i++) {
     ASSERT_TRUE(raster_thread_merger_->IsMerged());
-    raster_thread_merger_->DecrementLease();
+    raster_thread_merger_->DecrementLease(kMockCallerPointer);
   }
 
   ASSERT_TRUE(raster_thread_merger_->IsMerged());
@@ -347,7 +349,7 @@ TEST(RasterThreadMerger, Enable) {
   raster_thread_merger_->MergeWithLease(1);
   ASSERT_TRUE(raster_thread_merger_->IsMerged());
 
-  raster_thread_merger_->DecrementLease();
+  raster_thread_merger_->DecrementLease(kMockCallerPointer);
   ASSERT_FALSE(raster_thread_merger_->IsMerged());
 
   term1.Signal();
@@ -396,18 +398,18 @@ TEST(RasterThreadMerger, Disable) {
   ASSERT_TRUE(raster_thread_merger_->IsMerged());
 
   raster_thread_merger_->Disable();
-  raster_thread_merger_->UnMergeNow();
+  raster_thread_merger_->UnMergeByCaller(kMockCallerPointer);
   ASSERT_TRUE(raster_thread_merger_->IsMerged());
 
   {
-    auto decrement_result = raster_thread_merger_->DecrementLease();
+    auto decrement_result = raster_thread_merger_->DecrementLease(kMockCallerPointer);
     ASSERT_EQ(fml::RasterThreadStatus::kRemainsMerged, decrement_result);
   }
 
   ASSERT_TRUE(raster_thread_merger_->IsMerged());
 
   raster_thread_merger_->Enable();
-  raster_thread_merger_->UnMergeNow();
+  raster_thread_merger_->UnMergeByCaller(kMockCallerPointer);
   ASSERT_FALSE(raster_thread_merger_->IsMerged());
 
   raster_thread_merger_->MergeWithLease(1);
@@ -415,7 +417,7 @@ TEST(RasterThreadMerger, Disable) {
   ASSERT_TRUE(raster_thread_merger_->IsMerged());
 
   {
-    auto decrement_result = raster_thread_merger_->DecrementLease();
+    auto decrement_result = raster_thread_merger_->DecrementLease(kMockCallerPointer);
     ASSERT_EQ(fml::RasterThreadStatus::kUnmergedNow, decrement_result);
   }
 
@@ -505,7 +507,7 @@ TEST(RasterThreadMerger, RunExpiredTasksWhileFirstTaskMergesThreads) {
       ASSERT_TRUE(raster_thread_merger_->IsOnRasterizingThread());
       ASSERT_TRUE(raster_thread_merger_->IsOnPlatformThread());
       ASSERT_EQ(fml::MessageLoop::GetCurrentTaskQueueId(), qid_platform);
-      raster_thread_merger_->DecrementLease();
+      raster_thread_merger_->DecrementLease(kMockCallerPointer);
       post_merge.CountDown();
     });
 
@@ -552,7 +554,7 @@ TEST(RasterThreadMerger, RunExpiredTasksWhileFirstTaskUnMergesThreads) {
       ASSERT_TRUE(raster_thread_merger_->IsOnRasterizingThread());
       ASSERT_TRUE(raster_thread_merger_->IsOnPlatformThread());
       ASSERT_EQ(fml::MessageLoop::GetCurrentTaskQueueId(), qid_platform);
-      raster_thread_merger_->DecrementLease();
+      raster_thread_merger_->DecrementLease(kMockCallerPointer);
       unmerge_latch.Signal();
     });
 
@@ -614,7 +616,7 @@ TEST(RasterThreadMerger, SetMergeUnmergeCallback) {
   raster_thread_merger->MergeWithLease(1);
   ASSERT_EQ(1, callbacks);
 
-  raster_thread_merger->DecrementLease();
+  raster_thread_merger->DecrementLease(kMockCallerPointer);
   ASSERT_EQ(2, callbacks);
 
   term1.Signal();

@@ -5,6 +5,7 @@
 #ifndef FLUTTER_FML_MESSAGE_LOOP_TASK_QUEUES_H_
 #define FLUTTER_FML_MESSAGE_LOOP_TASK_QUEUES_H_
 
+#include <set>
 #include <map>
 #include <mutex>
 #include <vector>
@@ -16,9 +17,13 @@
 #include "flutter/fml/synchronization/shared_mutex.h"
 #include "flutter/fml/task_queue_id.h"
 #include "flutter/fml/task_source.h"
+#include "flutter/fml/raster_thread_merger.h"
 #include "flutter/fml/wakeable.h"
 
 namespace fml {
+
+class RasterThreadMerger;
+struct ThreadMergerKey;
 
 static const TaskQueueId _kUnmerged = TaskQueueId(TaskQueueId::kUnmerged);
 
@@ -38,7 +43,9 @@ class TaskQueueEntry {
   // this queue has not been merged or subsumed. OR exactly one
   // of these will be _kUnmerged, if owner_of is _kUnmerged, it means
   // that the queue has been subsumed or else it owns another queue.
-  TaskQueueId owner_of;
+  // TaskQueueId owner_of;
+  std::set<TaskQueueId> owner_of;
+
   TaskQueueId subsumed_by;
 
   TaskQueueId created_for;
@@ -119,7 +126,7 @@ class MessageLoopTaskQueues
   bool Merge(TaskQueueId owner, TaskQueueId subsumed);
 
   // Will return false if the owner has not been merged before.
-  bool Unmerge(TaskQueueId owner);
+  bool Unmerge(TaskQueueId owner, TaskQueueId subsumed);
 
   /// Returns \p true if \p owner owns the \p subsumed task queue.
   bool Owns(TaskQueueId owner, TaskQueueId subsumed) const;
@@ -131,6 +138,9 @@ class MessageLoopTaskQueues
   void PauseSecondarySource(TaskQueueId queue_id);
 
   void ResumeSecondarySource(TaskQueueId queue_id);
+
+  static fml::RefPtr<RasterThreadMerger> GetCachedRasterThreadMerger(
+      TaskQueueId platform_queue_id, TaskQueueId gpu_queue_id);
 
  private:
   class MergedQueuesRunner;
@@ -147,8 +157,14 @@ class MessageLoopTaskQueues
 
   fml::TimePoint GetNextWakeTimeUnlocked(TaskQueueId queue_id) const;
 
+  bool OwnsUnlocked(TaskQueueId owner, TaskQueueId subsumed) const;
+
   static std::mutex creation_mutex_;
   static fml::RefPtr<MessageLoopTaskQueues> instance_;
+
+  static std::mutex thread_mergers_mutex_;
+  static fml::RefPtr<RasterThreadMerger> raster_thread_merger_instance_;
+  static std::map<ThreadMergerKey, fml::RefPtr<RasterThreadMerger>> raster_thread_mergers;
 
   mutable std::mutex queue_mutex_;
   std::map<TaskQueueId, std::unique_ptr<TaskQueueEntry>> queue_entries_;

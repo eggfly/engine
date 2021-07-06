@@ -22,6 +22,8 @@ namespace testing {
 using ::testing::ByMove;
 using ::testing::Return;
 
+void *kMockCallerPointer = (void *) 0x80;
+
 class TestAndroidSurfaceFactory : public AndroidSurfaceFactory {
  public:
   using TestSurfaceProducer =
@@ -179,7 +181,7 @@ TEST(AndroidExternalViewEmbedder, RasterizerRunsOnPlatformThread) {
   embedder->PrerollCompositeEmbeddedView(
       0, std::make_unique<EmbeddedViewParams>());
 
-  auto postpreroll_result = embedder->PostPrerollAction(raster_thread_merger);
+  auto postpreroll_result = embedder->PostPrerollAction(raster_thread_merger, kMockCallerPointer);
   ASSERT_EQ(PostPrerollResult::kSkipAndRetryFrame, postpreroll_result);
 
   EXPECT_CALL(*jni_mock, FlutterViewEndFrame());
@@ -189,7 +191,7 @@ TEST(AndroidExternalViewEmbedder, RasterizerRunsOnPlatformThread) {
 
   int pending_frames = 0;
   while (raster_thread_merger->IsMerged()) {
-    raster_thread_merger->DecrementLease();
+    raster_thread_merger->DecrementLease(kMockCallerPointer);
     pending_frames++;
   }
   ASSERT_EQ(10, pending_frames);  // kDefaultMergedLeaseDuration
@@ -204,7 +206,7 @@ TEST(AndroidExternalViewEmbedder, RasterizerRunsOnRasterizerThread) {
   auto raster_thread_merger = GetThreadMergerFromPlatformThread();
   ASSERT_FALSE(raster_thread_merger->IsMerged());
 
-  PostPrerollResult result = embedder->PostPrerollAction(raster_thread_merger);
+  PostPrerollResult result = embedder->PostPrerollAction(raster_thread_merger, kMockCallerPointer);
   ASSERT_EQ(PostPrerollResult::kSuccess, result);
 
   EXPECT_CALL(*jni_mock, FlutterViewEndFrame());
@@ -338,7 +340,7 @@ TEST(AndroidExternalViewEmbedder, SubmitFrame) {
     // Submits frame if no Android view in the current frame.
     EXPECT_TRUE(did_submit_frame);
     // Doesn't resubmit frame.
-    auto postpreroll_result = embedder->PostPrerollAction(raster_thread_merger);
+    auto postpreroll_result = embedder->PostPrerollAction(raster_thread_merger, kMockCallerPointer);
     ASSERT_EQ(PostPrerollResult::kSuccess, postpreroll_result);
 
     EXPECT_CALL(*jni_mock, FlutterViewEndFrame());
@@ -405,7 +407,7 @@ TEST(AndroidExternalViewEmbedder, SubmitFrame) {
     // Doesn't submit frame if there aren't Android views in the previous frame.
     EXPECT_FALSE(did_submit_frame);
     // Resubmits frame.
-    auto postpreroll_result = embedder->PostPrerollAction(raster_thread_merger);
+    auto postpreroll_result = embedder->PostPrerollAction(raster_thread_merger, kMockCallerPointer);
     ASSERT_EQ(PostPrerollResult::kResubmitFrame, postpreroll_result);
 
     EXPECT_CALL(*jni_mock, FlutterViewEndFrame());
@@ -469,7 +471,7 @@ TEST(AndroidExternalViewEmbedder, SubmitFrame) {
     // Submits frame if there are Android views in the previous frame.
     EXPECT_TRUE(did_submit_frame);
     // Doesn't resubmit frame.
-    auto postpreroll_result = embedder->PostPrerollAction(raster_thread_merger);
+    auto postpreroll_result = embedder->PostPrerollAction(raster_thread_merger, kMockCallerPointer);
     ASSERT_EQ(PostPrerollResult::kSuccess, postpreroll_result);
 
     EXPECT_CALL(*jni_mock, FlutterViewEndFrame());
@@ -859,7 +861,7 @@ TEST(AndroidExternalViewEmbedder, DisableThreadMerger) {
   embedder->PrerollCompositeEmbeddedView(
       0, std::make_unique<EmbeddedViewParams>());
 
-  auto postpreroll_result = embedder->PostPrerollAction(raster_thread_merger);
+  auto postpreroll_result = embedder->PostPrerollAction(raster_thread_merger, kMockCallerPointer);
   ASSERT_EQ(PostPrerollResult::kSkipAndRetryFrame, postpreroll_result);
 
   EXPECT_CALL(*jni_mock, FlutterViewEndFrame()).Times(0);

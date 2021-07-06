@@ -45,7 +45,7 @@ void ShellTestExternalViewEmbedder::PrerollCompositeEmbeddedView(
 
 // |ExternalViewEmbedder|
 PostPrerollResult ShellTestExternalViewEmbedder::PostPrerollAction(
-    fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
+    fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger, void *caller) {
   FML_DCHECK(raster_thread_merger);
   return post_preroll_result_;
 }

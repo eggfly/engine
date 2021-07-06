@@ -4,6 +4,10 @@
 
 #include "flutter/flow/layers/platform_view_layer.h"
 
+#include "flutter/fml/logging.h"
+
+#include <utility>
+
 namespace flutter {
 
 PlatformViewLayer::PlatformViewLayer(const SkPoint& offset,
