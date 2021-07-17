@@ -17,8 +17,15 @@ TaskRunnerChecker::~TaskRunnerChecker() = default;
 bool TaskRunnerChecker::RunsOnCreationTaskRunner() const {
   FML_CHECK(fml::MessageLoop::IsInitializedForCurrentThread());
   const auto current_queue_id = MessageLoop::GetCurrentTaskQueueId();
+  bool subsumed_yes = false;
+  for (auto &subsumed: subsumed_queue_id_) {
+    if (RunsOnTheSameThread(current_queue_id, subsumed)) {
+      subsumed_yes = true;
+      break;
+    }
+  }
   return RunsOnTheSameThread(current_queue_id, initialized_queue_id_) ||
-         RunsOnTheSameThread(current_queue_id, subsumed_queue_id_);
+      subsumed_yes;
 };
 
 bool TaskRunnerChecker::RunsOnTheSameThread(TaskQueueId queue_a,

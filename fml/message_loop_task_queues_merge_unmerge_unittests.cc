@@ -99,7 +99,7 @@ TEST(MessageLoopTaskQueueMergeUnmerge, MergeUnmergeTasksPreserved) {
   ASSERT_EQ(2u, task_queue->GetNumPendingTasks(queue_id_1));
   ASSERT_EQ(0u, task_queue->GetNumPendingTasks(queue_id_2));
 
-  task_queue->Unmerge(queue_id_1);
+  task_queue->Unmerge(queue_id_1, queue_id_2);
 
   ASSERT_EQ(1u, task_queue->GetNumPendingTasks(queue_id_1));
   ASSERT_EQ(1u, task_queue->GetNumPendingTasks(queue_id_2));
@@ -126,7 +126,7 @@ TEST(MessageLoopTaskQueueMergeUnmerge, UnmergeFailsOnSubsumed) {
 
   task_queue->Merge(queue_id_1, queue_id_2);
 
-  ASSERT_FALSE(task_queue->Unmerge(queue_id_2));
+  ASSERT_FALSE(task_queue->Unmerge(queue_id_2, queue_id_1));
 }
 
 TEST(MessageLoopTaskQueueMergeUnmerge, MergeInvokesBothWakeables) {
@@ -176,7 +176,7 @@ TEST(MessageLoopTaskQueueMergeUnmerge,
       queue_id_2, []() {}, fml::TimePoint::Now());
 
   task_queue->Merge(queue_id_1, queue_id_2);
-  task_queue->Unmerge(queue_id_1);
+  task_queue->Unmerge(queue_id_1, queue_id_2);
 
   CountRemainingTasks(task_queue, queue_id_1);
 

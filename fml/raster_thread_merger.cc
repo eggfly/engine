@@ -60,7 +60,7 @@ void RasterThreadMerger::UnMergeNow() {
     return;
   }
   lease_term_ = 0;
-  bool success = task_queues_->Unmerge(platform_queue_id_);
+  bool success = task_queues_->Unmerge(platform_queue_id_, gpu_queue_id_);
   if (success && merge_unmerge_callback_ != nullptr) {
     merge_unmerge_callback_();
   }

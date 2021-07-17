@@ -36,7 +36,10 @@ class TaskSource {
  public:
   struct TopTask {
     TaskQueueId task_queue_id;
-    const DelayedTask& task;
+    const DelayedTask &task;
+    bool operator<(const TopTask &other) const {
+      return other.task > this->task;
+    }
   };
 
   /// Construts a TaskSource with the given `task_queue_id`.
